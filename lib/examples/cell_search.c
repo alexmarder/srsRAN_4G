@@ -266,6 +266,14 @@ int main(int argc, char** argv)
            results[i].cell.nof_ports,
            srsran_convert_power_to_dB(results[i].power),
            results[i].N_id_2);
+    printf("cell.id %d, cell.nof_prb %d, cell.nof_ports %d, cell.cp %d, cell.phich_length %d, cell.phich_resources %d\n",
+           results[i].cell.id,
+           results[i].cell.nof_prb,
+           results[i].cell.nof_ports,
+           results[i].cell.cp,
+           results[i].cell.phich_length,
+           results[i].cell.phich_resources
+    );
   }
 
   printf("\nBye\n");
