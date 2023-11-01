@@ -128,6 +128,11 @@ int srsran_rf_recv_wrapper(void* h, cf_t* data[SRSRAN_MAX_PORTS], uint32_t nsamp
   return srsran_rf_recv_with_time_multi(h, ptr, nsamples, true, &t->full_secs, &t->frac_secs);
 }
 
+static SRSRAN_AGC_CALLBACK(srsran_rf_set_rx_gain_th_wrapper_)
+{
+  srsran_rf_set_rx_gain_th((srsran_rf_t*)h, gain_db);
+}
+
 int main(int argc, char** argv)
 {
   cf_t*             buffer[SRSRAN_MAX_CHANNELS] = {NULL};
@@ -193,6 +198,13 @@ int main(int argc, char** argv)
     exit(-1);
   }
 
+  srsran_rf_info_t* rf_info = srsran_rf_get_info(&rf);
+  srsran_ue_sync_start_agc(&ue_sync,
+                           srsran_rf_set_rx_gain_th_wrapper_,
+                           rf_info->min_rx_gain,
+                           rf_info->max_rx_gain,
+                           18);
+
   uint32_t           subframe_count = 0;
   bool               start_capture  = false;
   bool               stop_capture   = false;
@@ -207,9 +219,13 @@ int main(int argc, char** argv)
       if (!start_capture) {
         if (srsran_ue_sync_get_sfidx(&ue_sync) == 9) {
           start_capture = true;
+          printf("Writing to file\n");
         }
       } else {
-        printf("Writing to file %6d subframes...\r", subframe_count);
+        if (subframe_count == 10) {
+//          printf("Writing to file %6d subframes...\r", subframe_count);
+          printf("It's working!\n");
+        }
         srsran_filesink_write_multi(&sink, (void**)buffer, SRSRAN_SF_LEN_PRB(nof_prb), nof_rx_antennas);
 
         // store time stamp of first subframe

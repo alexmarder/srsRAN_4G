@@ -40,6 +40,7 @@ char*       rf_args = "";
 float       rf_gain = 40.0, rf_freq = -1.0, rf_rate = 0.96e6;
 int         nof_samples     = -1;
 int         nof_rx_antennas = 1;
+uint32_t    max_prb = 6;
 
 void int_handler(int dummy)
 {
@@ -54,6 +55,7 @@ void usage(char* prog)
   printf("\t-r RF Rate [Default %.6f Hz]\n", rf_rate);
   printf("\t-n nof_samples [Default %d]\n", nof_samples);
   printf("\t-A nof_rx_antennas [Default %d]\n", nof_rx_antennas);
+//  printf("\t-p number of PRBs [Default %d]\n", max_prb);
   printf("\t-v srsran_verbose\n");
 }
 
@@ -83,6 +85,8 @@ void parse_args(int argc, char** argv)
       case 'A':
         nof_rx_antennas = (int)strtol(argv[optind], NULL, 10);
         break;
+//      case 'p':
+//        max_prb = (int)strtol(argv[optind], NULL, 10);
       case 'v':
         increase_srsran_verbose_level();
         break;
@@ -97,6 +101,24 @@ void parse_args(int argc, char** argv)
   }
 }
 
+static SRSRAN_AGC_CALLBACK(srsran_rf_set_rx_gain_th_wrapper_)
+{
+  srsran_rf_set_rx_gain_th((srsran_rf_t*)h, gain_db);
+}
+
+int srsran_start_agc(srsran_agc_t* agc,
+                     SRSRAN_AGC_CALLBACK(set_gain_callback),
+                     float min_gain_db,
+                     float max_gain_db,
+                     float init_gain_value_db,
+                     void* uhd_handler)
+{
+  int n = srsran_agc_init_uhd(agc, SRSRAN_AGC_MODE_PEAK_AMPLITUDE, 0, set_gain_callback, uhd_handler);
+  srsran_agc_set_gain_range(agc, min_gain_db, max_gain_db);
+  srsran_agc_set_gain(agc, init_gain_value_db);
+  return n;
+}
+
 int main(int argc, char** argv)
 {
   cf_t*             buffer[SRSRAN_MAX_PORTS];
@@ -104,10 +126,19 @@ int main(int argc, char** argv)
   srsran_rf_t       rf;
   srsran_filesink_t sink;
   uint32_t          buflen;
+  srsran_agc_t      agc;
+//  uint32_t          agc_period = 4;
+//  uint32_t fft_size                     = srsran_symbol_sz(max_prb);
+//  uint32_t sf_len                       = SRSRAN_SF_LEN(fft_size);
+//  uint32_t fft_size;
+//  uint32_t sf_len;
 
   signal(SIGINT, int_handler);
 
   parse_args(argc, argv);
+
+//  fft_size = srsran_symbol_sz(max_prb);
+//  sf_len = SRSRAN_SF_LEN(fft_size);
 
   buflen       = 4800;
   sample_count = 0;
@@ -149,6 +180,9 @@ int main(int argc, char** argv)
   printf("Correctly RX rate: %.2f MHz\n", srate * 1e-6);
   srsran_rf_start_rx_stream(&rf, false);
 
+  srsran_rf_info_t* rf_info = srsran_rf_get_info(&rf);
+  srsran_start_agc(&agc, srsran_rf_set_rx_gain_th_wrapper_, rf_info->min_rx_gain, rf_info->max_rx_gain, 18, (void*)&rf);
+
   while ((sample_count < nof_samples || nof_samples == -1) && keep_running) {
     n = srsran_rf_recv_with_time_multi(&rf, (void**)buffer, buflen, true, NULL, NULL);
     if (n < 0) {
@@ -156,9 +190,15 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
+    if (sample_count % 1000000 == 0) {
+      srsran_agc_process(&agc, buffer[0], buflen);
+    }
+
     srsran_filesink_write_multi(&sink, (void**)buffer, buflen, nof_rx_antennas);
     sample_count += buflen;
   }
+
+
 
   for (int i = 0; i < nof_rx_antennas; i++) {
     if (buffer[i]) {

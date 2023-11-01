@@ -60,6 +60,7 @@ struct cells {
   float         freq;
   int           dl_earfcn;
   float         power;
+  int           N_id_2;
 };
 struct cells results[1024];
 
@@ -246,6 +247,7 @@ int main(int argc, char** argv)
               results[n_found_cells].freq      = channels[freq].fd;
               results[n_found_cells].dl_earfcn = channels[freq].id;
               results[n_found_cells].power     = found_cells[i].peak;
+              results[n_found_cells].N_id_2    = i;
               n_found_cells++;
             }
           }
@@ -256,13 +258,14 @@ int main(int argc, char** argv)
 
   printf("\n\nFound %d cells\n", n_found_cells);
   for (int i = 0; i < n_found_cells; i++) {
-    printf("Found CELL %.1f MHz, EARFCN=%d, PHYID=%d, %d PRB, %d ports, PSS power=%.1f dBm\n",
+    printf("Found CELL %.1f MHz, EARFCN=%d, PHYID=%d, %d PRB, %d ports, PSS power=%.1f dBm, N_id_2=%d\n",
            results[i].freq,
            results[i].dl_earfcn,
            results[i].cell.id,
            results[i].cell.nof_prb,
            results[i].cell.nof_ports,
-           srsran_convert_power_to_dB(results[i].power));
+           srsran_convert_power_to_dB(results[i].power),
+           results[i].N_id_2);
   }
 
   printf("\nBye\n");
