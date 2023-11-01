@@ -63,8 +63,8 @@ configure_file(
 # Options
 ########################################################################
 option(ENABLE_SRSUE          "Build srsUE application"                  ON)
-option(ENABLE_SRSENB         "Build srsENB application"                 ON)
-option(ENABLE_SRSEPC         "Build srsEPC application"                 ON)
+option(ENABLE_SRSENB         "Build srsENB application"                 OFF)
+option(ENABLE_SRSEPC         "Build srsEPC application"                 OFF)
 option(DISABLE_SIMD          "Disable SIMD instructions"                OFF)
 option(AUTO_DETECT_ISA       "Autodetect supported ISA extensions"      ON)
 
