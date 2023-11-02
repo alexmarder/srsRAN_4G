@@ -37,7 +37,7 @@
 static bool keep_running = true;
 char*       output_file_name;
 char*       rf_args = "";
-float       rf_gain = 40.0, rf_freq = -1.0, rf_rate = 0.96e6;
+float       rf_gain = 0, rf_freq = -1.0, rf_rate = 0.96e6;
 int         nof_samples     = -1;
 int         nof_rx_antennas = 1;
 uint32_t    max_prb = 6;
@@ -130,18 +130,21 @@ int main(int argc, char** argv)
 //  uint32_t          agc_period = 4;
 //  uint32_t fft_size                     = srsran_symbol_sz(max_prb);
 //  uint32_t sf_len                       = SRSRAN_SF_LEN(fft_size);
-//  uint32_t fft_size;
-//  uint32_t sf_len;
+  uint32_t fft_size;
+  uint32_t sf_len;
 
   signal(SIGINT, int_handler);
 
   parse_args(argc, argv);
 
-//  fft_size = srsran_symbol_sz(max_prb);
-//  sf_len = SRSRAN_SF_LEN(fft_size);
+  fft_size = srsran_symbol_sz(max_prb);
+  sf_len = SRSRAN_SF_LEN(fft_size);
 
-  buflen       = 4800;
+//  buflen       = 4800;
+  buflen = sf_len;
   sample_count = 0;
+
+  printf("fft_size=%d, sf_len=%d, buflen=%d", fft_size, sf_len, buflen);
 
   for (int i = 0; i < nof_rx_antennas; i++) {
     buffer[i] = srsran_vec_cf_malloc(buflen);
@@ -181,7 +184,7 @@ int main(int argc, char** argv)
   srsran_rf_start_rx_stream(&rf, false);
 
   srsran_rf_info_t* rf_info = srsran_rf_get_info(&rf);
-  srsran_start_agc(&agc, srsran_rf_set_rx_gain_th_wrapper_, rf_info->min_rx_gain, rf_info->max_rx_gain, 18, (void*)&rf);
+  srsran_start_agc(&agc, srsran_rf_set_rx_gain_th_wrapper_, rf_info->min_rx_gain, rf_info->max_rx_gain, 0, (void*)&rf);
 
   while ((sample_count < nof_samples || nof_samples == -1) && keep_running) {
     n = srsran_rf_recv_with_time_multi(&rf, (void**)buffer, buflen, true, NULL, NULL);
@@ -190,9 +193,10 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-    if (sample_count % 1000000 == 0) {
-      srsran_agc_process(&agc, buffer[0], buflen);
-    }
+//    if (sample_count % 1000000 == 0) {
+//      srsran_agc_process(&agc, buffer[0], buflen);
+//    }
+    srsran_agc_process(&agc, buffer[0], buflen);
 
     srsran_filesink_write_multi(&sink, (void**)buffer, buflen, nof_rx_antennas);
     sample_count += buflen;
